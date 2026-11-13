@@ -166,9 +166,9 @@ function render(){
     '<div class="kpi' + (st.mustLeft ? ' red' : '') + '"><b>' + st.mustLeft + '</b><span>項必辦未完成</span></div></div>' +
     (st.next ? '<p class="next">下一件必辦：<b>' + esc(st.next.title) + '</b>（' + (status(st.next) === 'late' ? '已逾期，原訂 ' : '截止 ') + md(st.next.end) + '）</p>' : '<p class="next">必辦事項都完成了，加油！</p>') +
     '<p class="ctxline">' + esc(ctxLine(c)) + '</p></div></section>' +
-    '<div class="tabs" role="tablist">' + [['list', '📋 清單'], ['tl', '📅 時間軸'], ['budget', '💰 開辦預算']].map(function(t){ return '<button role="tab" data-tab="' + t[0] + '" aria-selected="' + (V.tab === t[0]) + '">' + t[1] + '</button>'; }).join('') + '</div>' +
+    '<div class="tabs" role="tablist">' + [['list', '📋 清單'], ['tl', '📅 時間軸'], ['budget', '💰 開辦預算'], ['ai', '🤖 AI 助手']].map(function(t){ return '<button role="tab" data-tab="' + t[0] + '" aria-selected="' + (V.tab === t[0]) + '">' + t[1] + '</button>'; }).join('') + '</div>' +
     '<div class="print-head"><h1>' + esc(c.name || '開店前置清單') + '・開店前置清單</h1><p>預計 ' + c.open + ' 開幕｜' + esc(ctxLine(c)) + '｜完成 ' + st.done + '/' + st.total + '｜列印日期 ' + today() + '</p><p style="font-size:.85em">本清單為一般性整理，規定以主管機關最新公告為準。</p></div>' +
-    '<section id="panel">' + (V.tab === 'tl' ? viewTimeline(ts) : V.tab === 'budget' ? viewBudget() : viewList(ts)) + '</section>' +
+    '<section id="panel">' + (V.tab === 'tl' ? viewTimeline(ts) : V.tab === 'budget' ? viewBudget() : V.tab === 'ai' ? (window.SOC_AI ? window.SOC_AI.panel() : '<div class="empty">AI 助手載入中…</div>') : viewList(ts)) + '</section>' +
     '<footer class="foot">👤 創作者 Mark Tsai（蔡豐全）<a href="mailto:tsaimark@gmail.com">tsaimark@gmail.com</a><br><a href="manual.html">📖 操作手冊</a><a href="#" data-act="warn">⚠ 使用警語</a>' + (standalone ? '' : '<a href="#" data-act="install">📲 加入主畫面</a>') +
     '<br><img src="https://visitor-badge.laobi.icu/badge?page_id=m255525.shopopeningchecklist" alt="訪客次數" height="20" loading="lazy" style="vertical-align:middle;margin-top:.4rem"></footer>';
   $('app').innerHTML = h;
@@ -214,6 +214,7 @@ function taskHtml(t){
       (t.src ? '<dt class="src">依據</dt><dd class="src">' + esc(t.src) + '</dd>' : '') + '</dl>';
     if(t.links.length) h += '<div class="links">🔗 ' + t.links.map(function(l){ return '<a href="' + esc(l.u) + '" target="_blank" rel="noopener">' + esc(l.t) + '</a>'; }).join('') + '</div>';
   }
+  if(window.SOC_AI && !t.custom) h += '<div class="noprint" style="margin-top:.4rem"><button class="ibtn" data-ai-ask="' + t.id + '">🤖 問 AI 這一項</button></div>';
   h += '<textarea class="note noprint" data-note="' + t.id + '" placeholder="寫個備註：承辦人、電話、還缺什麼…" aria-label="備註">' + esc(note) + '</textarea>' +
     (note ? '<div class="note-print">備註：' + esc(note) + '</div>' : '') +
     (t.custom ? '<button class="del noprint" data-delcustom="' + t.id + '">刪除這個自訂項目</button>' : '') + '</div></div></article>';
@@ -288,6 +289,7 @@ function renderSetup(){
     '<p class="warn-line">本清單是一般性整理，不是法律或稅務意見；各縣市規定不同，以主管機關最新公告為準。<button data-act="warn">⚠ 使用警語</button></p>' +
     '<form class="setup" id="setupForm"><h2>' + (S.ctx ? '✏ 修改開店設定' : '🏪 先告訴我您要開什麼店') + '</h2>' +
     (S.ctx ? '' : '<p class="small">不想填？到「⚙ 常用設定 → 看範例」先看虛構的範例店。</p>') +
+    (window.SOC_AI ? window.SOC_AI.setupBox() : '') +
     '<div class="row2 q"><label class="fld">店名（可以先空著）<input id="fName" maxlength="30" value="' + esc(d.name) + '" placeholder="例如：巷口小食堂"></label>' +
     '<label class="fld">預計開幕日<input id="fOpen" type="date" value="' + esc(d.open) + '" required></label></div>' +
     '<div class="q"><b>店型</b>' + chips('type', D.TYPES, d.type) + '</div>' +
@@ -329,6 +331,7 @@ var WARN_HTML = '<h2>⚠ 使用警語</h2>' +
   '<li>「視情況」的項目要不要辦，請直接問承辦機關或會計師、記帳士；本工具無法替您判斷個案。</li>' +
   '<li>建議辦理期間只是常見的安排，實際所需時間依機關與個案而定，請預留緩衝。</li>' +
   '<li>您填的資料、勾選與備註<b>只存在這台裝置的瀏覽器</b>，不會上傳。清除瀏覽器資料就會不見，重要內容請用「⚙ 常用設定 → 資料備份」。</li>' +
+  '<li>「🤖 AI 助手」要自備金鑰，金鑰只存在這台裝置。按「✨」時，你的開店條件與輸入內容（拍照功能則是照片）會送到你選的 AI 服務商；AI 回答可能出錯，只能當參考。</li>' +
   '<li>範例店家與人物全部是虛構的。</li></ul>';
 function showWarn(){ openModal(WARN_HTML + '<div class="stack"><button class="btn" data-act="close">我知道了</button></div>'); }
 function sec(id, title, val, body){ return '<details class="set-sec" data-sec="' + id + '"><summary><span class="sst">' + title + '</span><span class="ssv">' + esc(val) + '</span></summary><div class="set-body">' + body + '</div></details>'; }
@@ -342,6 +345,7 @@ function openSettings(){
       '<button class="btn" data-act="backup">下載備份檔</button><button class="btn alt" data-act="restore">從備份檔還原</button><button class="btn red" data-act="wipe">清除全部資料</button></div><input type="file" id="restoreFile" accept=".json,application/json" hidden>') +
     sec('demo', '看範例', demo ? '範例模式中' : '', '<p class="small">用虛構的店家看看成果，您自己的資料不受影響。</p><div class="stack">' +
       D.EXAMPLES.map(function(e){ return '<button class="btn alt" data-demo="' + e.key + '">' + esc(e.label) + '</button>'; }).join('') + (demo ? '<button class="btn" data-act="leaveDemo">離開範例</button>' : '') + '</div>') +
+    (window.SOC_AI ? sec('ai', '🤖 AI 設定（自備金鑰）', window.SOC_AI.status(), window.SOC_AI.settingsBody()) : '') +
     sec('about', '關於本工具', '', '<p>👤 創作者 Mark Tsai（蔡豐全）<br><a href="mailto:tsaimark@gmail.com">tsaimark@gmail.com</a></p><div class="stack"><a class="btn alt" href="manual.html">📖 操作手冊</a><button class="btn alt" data-act="warn">⚠ 使用警語</button>' +
       (standalone ? '' : '<button class="btn alt" data-act="install">📲 加入主畫面</button>') + '</div><p class="small" style="margin-top:.5rem">訪客數 <img src="https://visitor-badge.laobi.icu/badge?page_id=m255525.shopopeningchecklist" alt="訪客次數" height="20" loading="lazy" style="vertical-align:middle"></p>') +
     '<div class="stack"><button class="btn" data-act="close">關閉</button></div>';
@@ -349,6 +353,7 @@ function openSettings(){
   var open = lsJson('fold', []);
   document.querySelectorAll('.set-sec').forEach(function(d){ d.open = open.indexOf(d.dataset.sec) >= 0; d.addEventListener('toggle', saveFold); });
   $('restoreFile').addEventListener('change', restoreFile);
+  if(window.SOC_AI) window.SOC_AI.bindSettings();
 }
 function saveFold(){ var o = []; document.querySelectorAll('.set-sec').forEach(function(d){ if(d.open) o.push(d.dataset.sec); }); lsSet('fold', JSON.stringify(o)); }
 function applyView(){ document.documentElement.dataset.fs = lsGet('fs') === 'xl' ? 'xl' : 'm'; }
@@ -630,6 +635,14 @@ if('serviceWorker' in navigator && location.protocol !== 'file:') navigator.serv
 applyView(); readHash(); render(); initMarquee();
 window.addEventListener('hashchange', function(){ if(/#s=/.test(location.hash)){ readHash(); render(); } });
 if(!lsGet('warnSeen')){ lsSet('warnSeen', '1'); showWarn(); }
+/* 給 ai.js 用的介面 */
+window.SOC_APP = {
+  get S(){ return S; }, get V(){ return V; }, get demo(){ return demo; },
+  openModal:openModal, closeModal:closeModal, toast:toast, esc:esc, md:md, today:today, money:money, TAGN:TAGN,
+  allTasks:allTasks, status:status, stats:stats, ctxLine:ctxLine, budgetTotals:budgetTotals, copyText:copyText, download:download,
+  render:render, renderSetup:renderSetup, readDraftText:readDraftText, save:save, lsGet:lsGet, lsSet:lsSet, lsJson:lsJson, openSettings:openSettings,
+  applyDraft:function(o){ readDraftText(); if(!V.draft) V.draft = defaultDraft(); for(var k in o) V.draft[k] = o[k]; renderSetup(); }
+};
 window._soc = {render:render, reportEl:reportEl, downloadPdf:downloadPdf, allTasks:allTasks, stats:stats, enterDemo:enterDemo, leaveDemo:leaveDemo, icsText:icsText, plainText:plainText, shareUrl:shareUrl, groupOf:groupOf,
   get S(){ return S; }, get V(){ return V; }};
 })();

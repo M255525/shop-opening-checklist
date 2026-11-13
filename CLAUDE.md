@@ -28,6 +28,13 @@
 - 鐵捲門 `storefront(p)` 是內嵌 SVG，`#shutter` 用 CSS transform 上移 `p×138`。
 - 測試掛鉤 `window._soc`。
 
+## AI 助手（2026-11-13，BYOK）
+- `ai.js`（`window.SOC_AI`），透過 `app.js` 開出的 `window.SOC_APP` 介面操作狀態；服務商與 `callLLM`/`geminiModelFix` 沿用 `行銷內容工具/skill-prompt-studio`（7 家，含看圖）。設定存 `soc.ai`，輸入存 `soc.aiform`、結果存 `soc.aiout`、計畫書段落存 `soc.aiplan`（都不在備份檔裡）。
+- **原則：必辦項目、門檻、期限只由 data.js 規則決定**，prompt 開頭的 `RULES` 明令不得增刪項目、不得編造條號金額電話。每個功能都有免金鑰路徑：一句話設定有規則式 `D.parseShopText()`（在 data.js，node 測試覆蓋）、問承辦人問題 `agencyQs()`、優先順序 `priorityRule()`、進度摘要 `progressText()`，其餘可「複製提示詞」。
+- 入口：開店設定頁 `setupBox()`、任務卡「🤖 問 AI 這一項」（`openAsk`，可存到備註）、第 4 個分頁「🤖 AI 助手」6 張卡（文件草稿／營運計畫書→鳳凰貸款／優先順序／進度摘要／拍照辨識租約／店名與宣傳）、⚙ 的 AI 設定。
+- **鳳凰貸款接力**：`phoenixPayload()` → 開 `https://m255525.github.io/phoenix-loan-generator/#shopImport=<base64url>`（一律線上版）。對應：org small→small、sole/partner→business、ltd/corp→company；只有「只有自己」時帶 employeeCount=0；fundUse＝開辦預算非零項＋周轉金。接收端邏輯在 phoenix-loan-generator 的 `offerShopImport()`。鳳凰貸款的資金用途要等於「尚需資金」，整份預算一定對不起來，兩邊都有提示請使用者刪減。
+- 驗證方式：Playwright 改寫 `window.fetch` 模擬 Gemini 回應，測請求格式（金鑰在 header、JSON 模式、照片有 inline_data）與每張卡的解析呈現；真實金鑰未實測。
+
 ## 標準配備
 跑馬燈（工作區公告 GAS，滑鼠移入暫停，不可關）、⚙ 常用設定（收合式＋關於本工具）、首訪警語＋頁面入口、`manual.html#creator` 完整版（`tools/build_manual.py` 組，改手冊改 `tools/manual_body.html` 再重跑）、PWA（`tools/make_icons.py` 產圖示；上線改版升 `service-worker.js` 的 `CACHE_NAME`）、訪客計數器。
 

@@ -1,11 +1,12 @@
 // 加入主畫面＋離線可用。network-first＋同源快取備援，不快取跨網域請求。
-const CACHE_NAME = 'shop-opening-checklist-shell-v2';
+const CACHE_NAME = 'shop-opening-checklist-shell-v3';
 const SHELL_FILES = [
   './',
   './index.html',
   './data.js',
   './watermark.js',
   './app.js',
+  './ai.js',
   './manual.html',
   './manifest.json',
   './icons/icon-192.png',

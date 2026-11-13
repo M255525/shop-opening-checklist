@@ -303,7 +303,77 @@ var DEFAULT_BUDGET = [
   {k:'promo', n:'開幕宣傳', v:0}
 ];
 
-var api = {L:L, TYPES:TYPES, ORGS:ORGS, STAFF:STAFF, PLACES:PLACES, PHASES:PHASES, TASKS:TASKS, EXAMPLES:EXAMPLES, DEFAULT_BUDGET:DEFAULT_BUDGET,
+/* 一句話描述 → 開店設定（規則式，不需 AI；AI 版在 ai.js）。回傳 {set:{…}, found:[說明]}，沒提到的欄位不放進 set */
+var CN_NUM = {'一':1, '二':2, '兩':2, '三':3, '四':4, '五':5, '六':6, '七':7, '八':8, '九':9, '十':10};
+function cnInt(s){
+  if(/^\d+$/.test(s)) return +s;
+  if(s === '十') return 10;
+  var m = /^([一二兩三四五六七八九])?十([一二三四五六七八九])?$/.exec(s);
+  if(m) return (m[1] ? CN_NUM[m[1]] : 1) * 10 + (m[2] ? CN_NUM[m[2]] : 0);
+  return CN_NUM[s] || null;
+}
+function staffBand(n){ return n <= 0 ? '0' : n < 5 ? '1-4' : n < 30 ? '5-29' : '30+'; }
+function parseShopText(text, now){
+  var s = String(text || '').replace(/\s+/g, ''), set = {}, found = [];
+  if(!s) return {set:set, found:found};
+  var FOOD = /餐|飲料|手搖|咖啡|早午餐|早餐|小吃|麵|便當|甜點|烘焙|麵包|蛋糕|火鍋|燒烤|酒吧|茶飲|飯糰|滷味|鹹酥雞|冰品|豆花|餅乾|點心|零食|果醬|果汁|飲品|食品|吃的|喝的/;
+  var rules = [
+    ['stall', /擺攤|攤位|攤販|市集|夜市|快閃|餐車/],
+    ['online', /網店|網拍|網路商店|網路賣|網路上賣|線上賣|電商|蝦皮|官網|IG賣|團購|網購/],
+    ['beauty', /美髮|髮廊|理髮|剪髮|美甲|美睫|美容|紋繡|做臉/],
+    ['food', FOOD],
+    ['service', /工作室|設計|攝影|維修|修理|清潔|顧問|接案|教室|家教|寵物美容|洗衣/],
+    ['retail', /店|賣|販售|零售|雜貨|選物|服飾|花店|書店|文具/]
+  ];
+  for(var i = 0; i < rules.length; i++) if(rules[i][1].test(s)){ set.type = rules[i][0]; found.push('店型：' + TYPES[set.type].n); break; }
+  if(set.type && set.type !== 'food' && FOOD.test(s)){ set.food = true; found.push('有賣吃的、喝的'); }
+  // 員工
+  if(/自己一個人|一個人做|一人|獨自|只有我|不請人|沒請人|不請員工|沒有員工/.test(s)){ set.staff = '0'; found.push('員工：只有自己'); }
+  else {
+    var re = /(\d+|[一二兩三四五六七八九十]{1,3})(?:個|位|名)?(?:正職|兼職|全職)?(?:員工|工讀生|店員|夥伴|人手|師傅|助理|設計師|廚師|服務生|員)/g, m, tot = 0, any = false;
+    while((m = re.exec(s))){ var n = cnInt(m[1]); if(n != null){ tot += n; any = true; } }
+    if(any){ set.staff = staffBand(tot); found.push('員工：約 ' + tot + ' 人（' + STAFF[set.staff] + '）'); }
+  }
+  // 營業額（換算成萬元）
+  var sm = /(?:月營業額|月營收|營業額|營收|一個月|每個月|每月|月賣|月收入)(?:大概|大約|約|預估|預計|可以|能|有|是|做到|目標)*(\d+(?:\.\d+)?|[一二兩三四五六七八九十]{1,3})(萬|千|元)?/.exec(s);
+  if(sm){
+    var v = /^\d/.test(sm[1]) ? +sm[1] : cnInt(sm[1]), u = sm[2] || '萬';
+    if(v != null){ var w = u === '萬' ? v : u === '千' ? v / 10 : v / 10000; set.sales = Math.round(w * 10) / 10; found.push('月營業額：約 ' + set.sales + ' 萬元'); }
+  }
+  // 場地
+  if(set.type === 'online' && !/店面/.test(s)) set.place = /住家|家裡|在家|自宅/.test(s) ? 'home' : 'none';
+  else if(set.type === 'stall') set.place = 'spot';
+  else if(/自有|自己的店面|買的店面|家裡的店面|自家店面/.test(s)) set.place = 'own';
+  else if(/租/.test(s)) set.place = 'rent';
+  else if(/住家|家裡|在家|自宅/.test(s)) set.place = 'home';
+  else if(/店面|開一家|開一間|開店/.test(s)) set.place = 'rent';
+  if(set.place) found.push('場地：' + PLACES[set.place]);
+  // 登記型態
+  if(/股份有限公司/.test(s)) set.org = 'corp';
+  else if(/有限公司|開公司|成立公司|公司/.test(s)) set.org = 'ltd';
+  else if(/合夥|跟朋友一起|和朋友一起|跟朋友合開|和朋友合開|合開/.test(s)) set.org = 'partner';
+  else if(/獨資|行號|商號/.test(s)) set.org = 'sole';
+  else if(/小規模/.test(s)) set.org = 'small';
+  if(set.org) found.push('登記型態：' + ORGS[set.org].n);
+  // 其他狀況
+  [['reno', /裝潢|裝修|隔間|改格局/, '要裝潢'], ['sign', /招牌/, '要掛招牌'], ['music', /音樂|放歌|背景音樂/, '店裡放音樂'],
+   ['member', /會員|集點|客人資料|顧客資料/, '收集會員資料'], ['delivery', /外送|ubereats|uber|foodpanda|熊貓/i, '上外送平台']].forEach(function(f){ if(f[1].test(s)){ set[f[0]] = true; found.push(f[2]); } });
+  // 店名
+  var nm = /[「『“"]([^」』”"]{1,20})[」』”"]/.exec(s) || /(?:店名叫|店名是|店名|叫做|取名)[：:]?([^，,。；;！!？?、\s]{2,14})/.exec(s);
+  if(nm){ set.name = nm[1]; found.push('店名：' + set.name); }
+  // 開幕日
+  now = now || new Date();
+  var dm = /(\d{4})年(\d{1,2})月(?:(\d{1,2})[日號])?/.exec(s) || /(?:^|[^\d])(\d{1,2})月(?:(\d{1,2})[日號])?/.exec(s), od = null;
+  var after = /(\d+|[一二兩三四五六七八九十]{1,3})個月後/.exec(s);
+  if(after && cnInt(after[1])) od = addDays(now, cnInt(after[1]) * 30);
+  else if(dm && dm.length === 4 && dm[0].indexOf('年') > 0) od = new Date(+dm[1], +dm[2] - 1, +(dm[3] || 1));
+  else if(dm){ var mo = +dm[1], dy = +(dm[2] || 1); if(mo >= 1 && mo <= 12){ od = new Date(now.getFullYear(), mo - 1, dy); if(od < now) od = new Date(now.getFullYear() + 1, mo - 1, dy); } }
+  if(od && !isNaN(od)){ set.open = fmt(od); found.push('開幕日：' + set.open); }
+  return {set:set, found:found};
+}
+
+var api = {parseShopText:parseShopText, cnInt:cnInt,
+  L:L, TYPES:TYPES, ORGS:ORGS, STAFF:STAFF, PLACES:PLACES, PHASES:PHASES, TASKS:TASKS, EXAMPLES:EXAMPLES, DEFAULT_BUDGET:DEFAULT_BUDGET,
   threshold:threshold, NO_INVOICE:NO_INVOICE, staffN:staffN, sellsFood:sellsFood, orgAdvice:orgAdvice, buildTasks:buildTasks,
   parseDate:parseDate, addDays:addDays, fmt:fmt, dayDiff:dayDiff, under:under};
 if(typeof module !== 'undefined' && module.exports) module.exports = api;

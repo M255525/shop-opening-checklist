@@ -64,5 +64,21 @@ ok(D.dayDiff('2027-02-27', '2027-03-01') === 2, 'dayDiff');
 // 範例
 D.EXAMPLES.forEach(e => ok(D.buildTasks(Object.assign({open:'2027-03-01'}, e.ctx)).length > 10, '範例 ' + e.key));
 
+// 一句話解析（規則式）
+const NOW = new Date(2026, 10, 13);
+const P = t => D.parseShopText(t, NOW).set;
+let p = P('我想在新北租一間10坪的店面開手搖飲，請2個工讀生，月營業額大概15萬，明年3月開幕，要上外送');
+ok(p.type === 'food' && p.staff === '1-4' && p.sales === 15 && p.place === 'rent' && p.delivery === true && p.open === '2027-03-01', '解析 1 ' + JSON.stringify(p));
+p = P('自己一個人在家做手工飾品，在蝦皮網路賣，一個月大概三萬');
+ok(p.type === 'online' && p.staff === '0' && p.sales === 3 && p.place === 'home' && !p.food, '解析 2 ' + JSON.stringify(p));
+p = P('跟朋友合開一家咖啡店「晨光咖啡」，要裝潢、掛招牌、放音樂，請五位員工');
+ok(p.type === 'food' && p.org === 'partner' && p.name === '晨光咖啡' && p.reno && p.sign && p.music && p.staff === '5-29', '解析 3 ' + JSON.stringify(p));
+p = P('週末去市集擺攤賣手工餅乾，月營收8千');
+ok(p.type === 'stall' && p.food === true && p.place === 'spot' && p.sales === 0.8, '解析 4 ' + JSON.stringify(p));
+p = P('開有限公司做美甲工作室，3個月後開幕，35個員工');
+ok(p.type === 'beauty' && p.org === 'ltd' && p.staff === '30+' && p.open === D.fmt(D.addDays(NOW, 90)), '解析 5 ' + JSON.stringify(p));
+ok(Object.keys(P('')).length === 0 && Object.keys(P('你好')).length === 0, '空字串不亂猜');
+ok(D.cnInt('十二') === 12 && D.cnInt('兩') === 2 && D.cnInt('二十') === 20, 'cnInt');
+
 console.log((fail ? '❌ ' : '✅ ') + (n - fail) + '/' + n + ' 通過（' + combos + ' 種組合）');
 process.exit(fail ? 1 : 0);
