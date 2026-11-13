@@ -1,0 +1,33 @@
+# shop-opening-checklist — 開店前置清單
+
+選店型（餐飲／零售／網店／美容美髮／工作室／攤販）、登記型態、月營業額、員工數、場地與其他狀況（裝潢、招牌、音樂、會員資料、賣食品、外送），自動排出從規劃、登記、店面、人事食安、開幕準備到開幕後的倒數清單（最多 42 項），每項寫為什麼、去哪辦、要準備、法規依據與官方連結。勾一項鐵捲門就拉高一點，全部完成亮「營業中」。
+
+- 純靜態：`index.html`（CSS）＋`data.js`（任務資料＋規則引擎，node 也能 require）＋`app.js`（畫面）＋`manual.html`＋PWA。
+- 本機預覽 port **8874**（`.claude/launch.json` 的 `shop-opening-checklist`）。visitor-badge `m255525.shopopeningchecklist`。
+- 部署：`.github/workflows/pages.yml`（push master 自動部署 GitHub Pages）。建 public repo 由使用者自己跑 `gh repo create`。
+
+## 規則（2026-11 查證，改規定要同步三處：`data.js`、`tools/manual_body.html` 的數字表、`app.js` 的 `WARN_HTML`）
+- 營業稅起徵點（財政部，2025-01-01 起）：銷售貨物業 10 萬／月（food／retail／online／stall），勞務業 5 萬（beauty／service）。`threshold()`。
+- 商業登記法第 5 條：未達起徵點等可免辦商業登記，**仍要辦稅籍**（`taxreg` 對所有組合都出現）。
+- 免用統一發票門檻 20 萬（`NO_INVOICE`），影響 `invoice`、`vatfile` 文字。
+- 勞保 5 人以上強制、未滿 5 人可自願（`ins_li` tag must/maybe）；就保＋職災 1 人以上（`ins_ei`）；勞退 6%；工作規則 30 人（`rules`）。
+- 食品業者登錄（食安法 §8）：`sellsFood` = 店型 food 或勾「也有賣吃的」。產品責任險（衛福部 110-09-28 公告）只對有商業／公司登記者（`org !== 'small'`）。
+- 「視情況」項目（室內裝修審查、消防、招牌、廚師證照、美容營業衛生、公共意外險）各縣市不同，文案一律寫「以承辦機關認定為準」，不可寫成確定必辦。
+- 法規連結用全國法規資料庫 pcode（已驗證：J0080001 公司法、J0080004 商業登記法、J0080006 資本額查核辦法、G0340080 營業稅法、G0340003 所得稅法、N0030001 勞基法、N0050001 勞保條例、N0050021 就保法、L0060001 健保法、N0030020 勞退條例、L0040001 食安法、J0170001 消保法、I0050021 個資法、J0070017 著作權法、D0070109 建築法）。職災保護法 pcode 未確認，改連勞保局 FAQ。
+- 改 `data.js` 後跑 `node tools/test_engine.mjs`（窮舉 3000 種組合＋各條規則）。
+
+## 架構
+- 任務 `{id, ph, tag, o:[開始, 截止]（相對開幕日天數）, title, why, where, prep, links, src, when(ctx)}`，文字欄可為 `function(ctx)`；`buildTasks(ctx)` 解析成字串＋日期。日期全用本地時間 `fmt()`，不要用 toISOString。
+- localStorage 前綴 `soc.`：`ctx`、`done{id:完成日}`、`notes`、`custom[]`、`budget`、`tab`、`group`、`fs`、`fold`、`warnSeen`、`marquee`。改開店設定時 done／notes 依 id 保留。
+- **`<html>` 有 `data-fs` 屬性**，事件委派的 `closest()` 會一路找到 html——按鈕屬性不可再用 `data-fs`（曾因此點任何空白處都打開設定），字體鈕用 `data-fontsize`。
+- 範例模式（⚙ 看範例，3 家虛構店）：`S` 換成記憶體資料、`save()` 不寫入；開幕日＝今天＋40 天，最晚到期的一項必辦留著示範「逾期」。
+- 分享連結 `#s=`（base64url 的 ctx，不帶勾選／備註／預算）；已有設定時跳確認；有 `hashchange` 監聽。
+- 匯出：列印（`@media print` 只印清單＋去哪辦＋要準備＋備註）、`.ics`（未完成項目放截止日，依 75 位元組折行）、複製文字、備份 JSON（`app:'shop-opening-checklist'`，還原過 `cleanState`）。
+- 鐵捲門 `storefront(p)` 是內嵌 SVG，`#shutter` 用 CSS transform 上移 `p×138`。
+- 測試掛鉤 `window._soc`。
+
+## 標準配備
+跑馬燈（工作區公告 GAS，滑鼠移入暫停，不可關）、⚙ 常用設定（收合式＋關於本工具）、首訪警語＋頁面入口、`manual.html#creator` 完整版（`tools/build_manual.py` 組，改手冊改 `tools/manual_body.html` 再重跑）、PWA（`tools/make_icons.py` 產圖示；上線改版升 `service-worker.js` 的 `CACHE_NAME`）、訪客計數器。
+
+## 未驗證
+手機真機的 .ics 匯入、iPhone 主畫面資料保留只在桌面 Chrome 模擬過。
