@@ -177,7 +177,7 @@ function seg(name, cur, opts){ return '<div class="seg" role="group">' + opts.ma
 function viewList(ts){
   var h = '<div class="tools noprint">' + seg('group', V.group, [['phase', '依階段'], ['where', '依去哪辦']]) +
     seg('filter', V.filter, [['all', '全部'], ['todo', '未完成'], ['late', '逾期'], ['must', '必辦']]) +
-    '<span class="grow"></span><button class="ibtn" data-act="addCustom">＋ 自訂項目</button><button class="ibtn" data-act="print">🖨 列印</button>' +
+    '<span class="grow"></span><button class="ibtn" data-act="addCustom">＋ 自訂項目</button><button class="ibtn" data-act="pdf">⬇ 下載 PDF</button><button class="ibtn" data-act="print">🖨 列印</button>' +
     '<button class="ibtn" data-act="ics">📅 加到行事曆</button><button class="ibtn" data-act="copy">💬 複製文字</button><button class="ibtn" data-act="share">🔗 分享設定</button></div>';
   var f = ts.filter(function(t){
     var s = status(t);
@@ -257,6 +257,7 @@ function viewBudget(){
     '<div class="brow total"><span>周轉金</span><b id="bReserve">' + money(t.reserve) + ' 元</b></div>' +
     '<div class="brow total"><span>總共需要</span><b id="bTotal">' + money(t.total) + ' 元</b></div>' +
     '<div class="brow total"><span>資金' + '</span><b id="bGap">' + gapText(t) + '</b></div>' +
+    '<div class="go noprint"><button class="btn alt" data-act="pdf">⬇ 下載 PDF（清單＋預算）</button></div>' +
     '<p class="bnote">金額只存在您這台裝置。要評估餐飲店每月損益，可以用<a href="https://m255525.github.io/restaurant-feasibility-calculator/" target="_blank" rel="noopener">餐飲店經營評估試算</a>。</p></div>';
   return h;
 }
@@ -400,6 +401,98 @@ function restoreFile(e){
   }).catch(function(){ toast('這個檔案不是開店前置清單的備份檔'); });
 }
 
+/* ---------- 下載 PDF（html2pdf.js 點擊時才載入；每頁疊馬克老師浮水印） ---------- */
+var H2P_URL = 'https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js';
+function loadH2P(){
+  if(window.html2pdf) return Promise.resolve();
+  return new Promise(function(ok, no){ var s = document.createElement('script'); s.src = H2P_URL; s.onload = ok; s.onerror = no; document.head.appendChild(s); });
+}
+function fadedWatermark(alpha){   // 先把浮水印畫成半透明 PNG，不依賴 jsPDF 的透明度 API
+  return new Promise(function(ok, no){
+    var im = new Image(); im.onload = function(){ var c = document.createElement('canvas'); c.width = im.width; c.height = im.height; var x = c.getContext('2d'); x.globalAlpha = alpha; x.drawImage(im, 0, 0); ok({url:c.toDataURL('image/png'), w:im.width, h:im.height}); };
+    im.onerror = no; im.src = window.SOC_WATERMARK;
+  });
+}
+function reportEl(){
+  var c = S.ctx, ts = allTasks(), st = stats(ts), dd = D.dayDiff(today(), c.open), bt = budgetTotals();
+  var h = '<style>' +
+    '#pdfReport,#pdfReport *{box-sizing:border-box}#pdfReport{width:100%;padding:2px 8px 2px 2px;background:#fff;color:#222;font-family:"Noto Sans TC","Microsoft JhengHei",sans-serif;font-size:13px;line-height:1.55}' +
+    '#pdfReport h1{font-family:"Noto Serif TC",serif;font-size:24px;margin:0 0 4px;color:#3B2B20}' +
+    '#pdfReport .meta{color:#555;font-size:12px;margin:0}' +
+    '#pdfReport .warn{font-size:11px;color:#8a2a1f;margin:6px 0 10px;border:1px solid #e3c4bd;border-radius:6px;padding:4px 8px;background:#fdf5f3}' +
+    '#pdfReport .kp{display:flex;gap:8px;margin:8px 0 6px}#pdfReport .kp div{flex:1;border:1px solid #d6c6ad;border-radius:8px;padding:5px 9px;background:#faf6ee}' +
+    '#pdfReport .kp b{display:block;font-size:20px;line-height:1.2}#pdfReport .kp span{font-size:11px;color:#6a5b4d}' +
+    '#pdfReport h2{font-family:"Noto Serif TC",serif;font-size:17px;color:#3B2B20;border-bottom:2px solid #3B2B20;margin:14px 0 6px;padding-bottom:2px}' +
+    '#pdfReport h2 small{font-family:"Noto Sans TC",sans-serif;font-size:11px;color:#6a5b4d;font-weight:500;margin-left:8px}' +
+    '#pdfReport .r-task{border:1px solid #ccc;border-left:5px solid #2E5A87;border-radius:6px;padding:5px 9px;margin:5px 0}' +
+    '#pdfReport .r-task.must{border-left-color:#B3261E}#pdfReport .r-task.maybe{border-left-color:#9A5800}#pdfReport .r-task.done{border-left-color:#2C6A4A;background:#f6faf7}' +
+    '#pdfReport .tt{font-weight:900;font-size:14px}#pdfReport .bx{font-size:16px;margin-right:4px}' +
+    '#pdfReport .tg{display:inline-block;font-size:10.5px;font-weight:900;color:#fff;border-radius:3px;padding:0 5px;margin-left:6px;vertical-align:2px;background:#2E5A87}' +
+    '#pdfReport .tg.must{background:#B3261E}#pdfReport .tg.maybe{background:#9A5800}#pdfReport .tg.custom{background:#6a5b4d}' +
+    '#pdfReport .dt{float:right;font-size:11.5px;color:#555;font-weight:700}#pdfReport .dt.late{color:#B3261E}#pdfReport .dt.ok{color:#2C6A4A}' +
+    '#pdfReport .why{margin:2px 0;color:#333;font-size:12px}#pdfReport .ln{margin:1px 0;font-size:12px}#pdfReport .ln b{color:#6a5b4d;margin-right:4px}' +
+    '#pdfReport .nt{margin:3px 0 0;font-size:12.5px;font-family:"LXGW WenKai TC","Kaiti TC",serif;background:#fffbea;border-radius:4px;padding:1px 6px}' +
+    '#pdfReport table{width:100%;border-collapse:collapse;font-size:12.5px}#pdfReport td{border:1px solid #d6c6ad;padding:3px 8px}#pdfReport td.n{text-align:right;font-variant-numeric:tabular-nums}' +
+    '#pdfReport .src{font-size:10.5px;color:#666;margin-top:12px}' +
+    '</style><div id="pdfReport">' +
+    '<h1>' + esc(c.name || '我的店') + '・開店前置清單</h1>' +
+    '<p class="meta">預計開幕 ' + c.open + '｜' + esc(ctxLine(c)) + '｜產出日期 ' + today() + '</p>' +
+    '<div class="kp"><div><b>' + st.done + ' / ' + st.total + '</b><span>項已完成</span></div><div><b>' + (dd >= 0 ? dd + ' 天' : '已開幕') + '</b><span>距離開幕</span></div>' +
+    '<div><b>' + st.late + '</b><span>項已逾期</span></div><div><b>' + st.mustLeft + '</b><span>項必辦未完成</span></div></div>' +
+    '<p class="warn">本清單是一般性整理，不是法律、稅務或會計意見；各縣市規定不同，辦理前請以主管機關最新公告為準。日期為建議辦理期間。</p>';
+  D.PHASES.forEach(function(p){
+    var items = ts.filter(function(t){ return t.ph === p.id; }); if(!items.length) return;
+    h += '<h2>' + p.n + '<small>' + p.s + '・完成 ' + items.filter(function(t){ return S.done[t.id]; }).length + '/' + items.length + '</small></h2>';
+    items.forEach(function(t){
+      var s = status(t), dn = s === 'done', range = t.start === t.end ? md(t.end) : md(t.start) + '～' + md(t.end);
+      var dtx = dn ? '✓ ' + md(S.done[t.id]) + ' 完成' : s === 'late' ? range + '・逾期 ' + D.dayDiff(t.end, today()) + ' 天' : range;
+      h += '<div class="r-task ' + (dn ? 'done' : t.tag) + '"><span class="dt' + (dn ? ' ok' : s === 'late' ? ' late' : '') + '">' + dtx + '</span>' +
+        '<span class="bx">' + (dn ? '☑' : '☐') + '</span><span class="tt">' + esc(t.title) + '</span><span class="tg ' + t.tag + '">' + TAGN[t.tag] + '</span>' +
+        (t.why ? '<p class="why">' + esc(t.why) + '</p>' : '') +
+        (t.custom ? '' : '<p class="ln"><b>去哪辦</b>' + esc(t.where) + '</p>' + (t.prep.length ? '<p class="ln"><b>要準備</b>' + esc(t.prep.join('、')) + '</p>' : '') + (t.src ? '<p class="ln"><b>依據</b>' + esc(t.src) + '</p>' : '')) +
+        (S.notes[t.id] ? '<p class="nt">備註：' + esc(S.notes[t.id]) + '</p>' : '') + '</div>';
+    });
+  });
+  if(bt.total || bt.fund){
+    var b = S.budget, rows = D.DEFAULT_BUDGET.map(function(x){ return '<tr><td>' + x.n + '</td><td class="n">' + money(b.items[x.k]) + ' 元</td></tr>'; }).join('');
+    h += '<div class="r-task" style="border-left-color:#3B2B20"><h2 style="margin-top:2px">開辦預算</h2><table>' + rows +
+      '<tr><td>周轉金（每月 ' + money(b.monthly) + ' 元 × ' + b.months + ' 個月）</td><td class="n">' + money(bt.reserve) + ' 元</td></tr>' +
+      '<tr><td><b>總共需要</b></td><td class="n"><b>' + money(bt.total) + ' 元</b></td></tr>' +
+      '<tr><td>自有資金＋貸款</td><td class="n">' + money(bt.fund) + ' 元</td></tr>' +
+      '<tr><td><b>' + (bt.gap >= 0 ? '資金足夠，多出' : '資金缺口') + '</b></td><td class="n"><b>' + money(Math.abs(bt.gap)) + ' 元</b></td></tr></table></div>';
+  }
+  h += '<p class="src">法規數字依 2026 年 11 月查證：營業稅起徵點、商業登記法第 5 條、勞工保險條例、就業保險法、勞工職業災害保險及保護法、勞工退休金條例、勞動基準法、食品安全衛生管理法、衛福部食品業者投保產品責任保險公告等。完整清單與連結請見線上版操作手冊。創作者 Mark Tsai（蔡豐全）｜m255525.github.io/shop-opening-checklist</p></div>';
+  var el = document.createElement('div'); el.innerHTML = h; return el;
+}
+var pdfBusy = false;
+function downloadPdf(){
+  if(pdfBusy) return; pdfBusy = true; toast('正在產生 PDF，請稍候…');
+  var name = (S.ctx.name || '開店') + '前置清單-' + today() + '.pdf', el = reportEl();
+  Promise.all([loadH2P(), fadedWatermark(.11), document.fonts ? document.fonts.ready : null]).then(function(r){
+    var wm = r[1];
+    // 量高度決定解析度，避免畫布超過瀏覽器上限
+    var probe = el.cloneNode(true); probe.style.cssText = 'position:absolute;left:-9999px;top:0'; document.body.appendChild(probe);
+    var hgt = probe.querySelector('#pdfReport').offsetHeight; probe.remove();
+    var scale = Math.max(1, Math.min(2, 30000 / Math.max(hgt, 1)));
+    return html2pdf().set({
+      margin:[12, 10, 14, 10], filename:name, image:{type:'jpeg', quality:.92},
+      html2canvas:{scale:scale, backgroundColor:'#ffffff', useCORS:true},
+      jsPDF:{unit:'mm', format:'a4', orientation:'portrait'},
+      pagebreak:{mode:['css', 'legacy'], avoid:['.r-task', 'h2', 'tr', '.kp']}
+    }).from(el).toPdf().get('pdf').then(function(pdf){
+      var n = pdf.internal.getNumberOfPages(), W = 210, H = 297, w = W * .42, hh = w * wm.h / wm.w;
+      for(var i = 1; i <= n; i++){
+        pdf.setPage(i);
+        pdf.addImage(wm.url, 'PNG', (W - w) / 2, (H - hh) / 2, w, hh, 'socwm', 'FAST');
+        pdf.setFontSize(8); pdf.setTextColor(140);
+        pdf.text('m255525.github.io/shop-opening-checklist', 10, H - 6);
+        pdf.text(i + ' / ' + n, W - 10, H - 6, {align:'right'});
+      }
+    }).save();
+  }).then(function(){ toast('PDF 已下載'); }, function(){ toast('PDF 產生失敗（可能沒有網路），請改用「🖨 列印」另存 PDF'); })
+    .then(function(){ pdfBusy = false; });
+}
+
 /* ---------- 範例模式 ---------- */
 function enterDemo(key){
   var ex = D.EXAMPLES.filter(function(e){ return e.key === key; })[0]; if(!ex) return;
@@ -435,6 +528,7 @@ var ACT = {
   },
   print:function(){ if(V.tab !== 'list'){ V.tab = 'list'; render(); } setTimeout(function(){ window.print(); }, 50); },
   ics:function(){ download((S.ctx.name || '開店') + '前置清單.ics', icsText(), 'text/calendar'); toast('已下載，用 Google 日曆或手機行事曆「匯入」就好'); },
+  pdf:downloadPdf,
   copy:function(){ copyText(plainText()); },
   share:function(){
     openModal('<h2>🔗 分享開店設定</h2><p>這個連結只帶開店條件（店型、型態、員工、場地、開幕日），<b>不會帶您的勾選、備註和預算</b>。適合傳給合夥人或記帳士，對方打開就看到同一份清單。</p>' +
@@ -532,9 +626,10 @@ function initMarquee(){
 
 window.addEventListener('beforeinstallprompt', function(e){ e.preventDefault(); window._dp = e; });
 if('serviceWorker' in navigator && location.protocol !== 'file:') navigator.serviceWorker.register('service-worker.js').catch(function(){});
+(function(){ if(!window.SOC_WATERMARK) return; var w = document.createElement('div'); w.id = 'pdfWatermark'; w.setAttribute('aria-hidden', 'true'); w.innerHTML = '<img alt="" src="' + window.SOC_WATERMARK + '">'; document.body.appendChild(w); })();   // 列印時每頁疊浮水印
 applyView(); readHash(); render(); initMarquee();
 window.addEventListener('hashchange', function(){ if(/#s=/.test(location.hash)){ readHash(); render(); } });
 if(!lsGet('warnSeen')){ lsSet('warnSeen', '1'); showWarn(); }
-window._soc = {render:render, allTasks:allTasks, stats:stats, enterDemo:enterDemo, leaveDemo:leaveDemo, icsText:icsText, plainText:plainText, shareUrl:shareUrl, groupOf:groupOf,
+window._soc = {render:render, reportEl:reportEl, downloadPdf:downloadPdf, allTasks:allTasks, stats:stats, enterDemo:enterDemo, leaveDemo:leaveDemo, icsText:icsText, plainText:plainText, shareUrl:shareUrl, groupOf:groupOf,
   get S(){ return S; }, get V(){ return V; }};
 })();

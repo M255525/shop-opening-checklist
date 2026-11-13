@@ -209,6 +209,7 @@ h1,h2,h3{line-height:1.3;margin:0}
 .mini input,.mini select{min-height:2.6rem;border:1.5px solid var(--line);border-radius:.5rem;padding:.2rem .5rem;background:#fff;width:100%}
 .toast{position:fixed;left:50%;bottom:1.2rem;transform:translateX(-50%);background:var(--ink);color:var(--paper);padding:.55rem 1rem;border-radius:.7rem;z-index:90;font-weight:700;max-width:calc(100vw - 2rem)}
 .print-head{display:none}
+#pdfWatermark{display:none}
 
 @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}#marqueeTrack{animation:marquee-scroll 90s linear infinite!important}}
 
@@ -229,6 +230,8 @@ h1,h2,h3{line-height:1.3;margin:0}
   .detail .why,.detail .links,.detail .src,.del{display:none}
   .note{display:none}
   .note-print{display:block;font-family:var(--hand)}
+  #pdfWatermark{display:flex!important;position:fixed;inset:0;z-index:9999;align-items:center;justify-content:center;overflow:hidden;pointer-events:none}
+  #pdfWatermark img{width:42%;min-width:200px;max-width:380px;opacity:.11}
   .phase{break-inside:auto}
   .phase>h2{break-after:avoid}
 }
@@ -240,6 +243,7 @@ h1,h2,h3{line-height:1.3;margin:0}
 <div id="modal" role="dialog" aria-modal="true"><div id="modalBox"></div></div>
 <noscript>這個工具需要開啟 JavaScript 才能使用。</noscript>
 <script src="data.js"></script>
+<script src="watermark.js"></script>
 <script src="app.js"></script>
 </body>
 </html>
