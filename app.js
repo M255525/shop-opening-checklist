@@ -156,7 +156,7 @@ function render(){
   var dd = D.dayDiff(today(), c.open);
   var h = '<div class="bar"><h1>' + esc(c.name || '開店前置清單') + '<small>開店前置清單・' + c.open.replace(/-/g, '/') + ' 開幕</small></h1>' +
     '<button class="ibtn" data-act="edit">✏ 開店設定</button><a class="ibtn" href="manual.html">📖 操作手冊</a><button class="ibtn" data-act="settings">⚙ 常用設定</button></div>' +
-    (demo ? '<div class="demo-bar"><span>👀 範例模式：資料是虛構的，勾選不會存下來。</span><button data-act="leaveDemo">離開範例</button></div>' : '') +
+    exStrip() +
     '<p class="warn-line">本清單是一般性整理，不是法律或稅務意見；各縣市規定不同，以主管機關最新公告為準。<button data-act="warn">⚠ 使用警語</button></p>' +
     '<section class="hero"><div class="front">' + storefront(p, c.name, c.open) + '</div>' +
     '<div class="stats"><div class="count"><b>' + st.done + '</b><span>/ ' + st.total + ' 項完成</span><span style="margin-left:auto">鐵捲門拉起 ' + Math.round(p * 100) + '%</span></div>' +
@@ -172,6 +172,15 @@ function render(){
     '<footer class="foot">👤 創作者 Mark Tsai（蔡豐全）<a href="mailto:tsaimark@gmail.com">tsaimark@gmail.com</a><br><a href="manual.html">📖 操作手冊</a><a href="#" data-act="warn">⚠ 使用警語</a>' + (standalone ? '' : '<a href="#" data-act="install">📲 加入主畫面</a>') +
     '<br><img src="https://visitor-badge.laobi.icu/badge?page_id=m255525.shopopeningchecklist" alt="訪客次數" height="20" loading="lazy" style="vertical-align:middle;margin-top:.4rem"></footer>';
   $('app').innerHTML = h;
+}
+/* 頁面上方的範例店橫條（主畫面與開店設定頁都有） */
+function exStrip(){
+  var btns = D.EXAMPLES.map(function(e){
+    var m = /^(.*?)（(.*)）$/.exec(e.label) || [0, e.label, ''];
+    return '<button class="exbtn" data-demo="' + e.key + '" aria-pressed="' + (demo && V.demoKey === e.key) + '"><span class="exic">' + D.TYPES[e.ctx.type].ic + '</span><span><b>' + esc(m[1]) + '</b><small>' + esc(m[2]) + '</small></span></button>';
+  }).join('');
+  return '<div class="exbar noprint' + (demo ? ' on' : '') + '"><div class="exlab">' + (demo ? '👀 正在看範例店<small>資料是虛構的，勾選不會存下來</small>' : (S.ctx ? '👀 看看範例店' : '👀 還沒想好？先看範例店') + '<small>三家虛構的店，點了就能看完整清單</small>') + '</div>' +
+    '<div class="exbtns">' + btns + '</div>' + (demo ? '<button class="exleave" data-act="leaveDemo">離開範例，回到' + (saved && saved.ctx ? '我的清單' : '開店設定') + '</button>' : '') + '</div>';
 }
 function seg(name, cur, opts){ return '<div class="seg" role="group">' + opts.map(function(o){ return '<button data-' + name + '="' + o[0] + '" aria-pressed="' + (cur === o[0]) + '">' + o[1] + '</button>'; }).join('') + '</div>'; }
 function viewList(ts){
@@ -287,8 +296,9 @@ function renderSetup(){
   var h = '<div class="bar"><h1>開店前置清單<small>選好條件，自動排出從登記到開幕的倒數清單</small></h1>' +
     (S.ctx ? '' : '<button class="ibtn" data-act="settings">⚙ 常用設定</button>') + '<a class="ibtn" href="manual.html">📖 操作手冊</a></div>' +
     '<p class="warn-line">本清單是一般性整理，不是法律或稅務意見；各縣市規定不同，以主管機關最新公告為準。<button data-act="warn">⚠ 使用警語</button></p>' +
+    exStrip() +
     '<form class="setup" id="setupForm"><h2>' + (S.ctx ? '✏ 修改開店設定' : '🏪 先告訴我您要開什麼店') + '</h2>' +
-    (S.ctx ? '' : '<p class="small">不想填？到「⚙ 常用設定 → 看範例」先看虛構的範例店。</p>') +
+
     (window.SOC_AI ? window.SOC_AI.setupBox() : '') +
     '<div class="row2 q"><label class="fld">店名（可以先空著）<input id="fName" maxlength="30" value="' + esc(d.name) + '" placeholder="例如：巷口小食堂"></label>' +
     '<label class="fld">預計開幕日<input id="fOpen" type="date" value="' + esc(d.open) + '" required></label></div>' +
@@ -508,7 +518,7 @@ function enterDemo(key){
   ts.forEach(function(t){ if(t.end < td && t !== skip) st.done[t.id] = D.fmt(D.addDays(D.parseDate(t.end), -3)); });
   st.notes[ts[0].id] = '這是範例備註：記帳士王小姐（虛構）說開幕前一個月再對一次預算。';
   st.budget = cleanBudget({items:{deposit:120000, reno:450000, equip:380000, stock:80000, fees:30000, promo:40000}, monthly:150000, months:6, own:900000, loan:600000});
-  S = st; demo = true; V.editing = false; V.draft = null; closeModal(); render(); window.scrollTo(0, 0); toast('範例：' + ex.label);
+  S = st; demo = true; V.demoKey = key; V.editing = false; V.draft = null; closeModal(); render(); window.scrollTo(0, 0); toast('範例：' + ex.label);
 }
 function leaveDemo(){ demo = false; S = saved || load(); saved = null; closeModal(); render(); toast('已回到您自己的清單'); }
 

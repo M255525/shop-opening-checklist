@@ -20,7 +20,7 @@
 - 任務 `{id, ph, tag, o:[開始, 截止]（相對開幕日天數）, title, why, where, prep, links, src, when(ctx)}`，文字欄可為 `function(ctx)`；`buildTasks(ctx)` 解析成字串＋日期。日期全用本地時間 `fmt()`，不要用 toISOString。
 - localStorage 前綴 `soc.`：`ctx`、`done{id:完成日}`、`notes`、`custom[]`、`budget`、`tab`、`group`、`fs`、`fold`、`warnSeen`、`marquee`。改開店設定時 done／notes 依 id 保留。
 - **`<html>` 有 `data-fs` 屬性**，事件委派的 `closest()` 會一路找到 html——按鈕屬性不可再用 `data-fs`（曾因此點任何空白處都打開設定），字體鈕用 `data-fontsize`。
-- 範例模式（⚙ 看範例，3 家虛構店）：`S` 換成記憶體資料、`save()` 不寫入；開幕日＝今天＋40 天，最晚到期的一項必辦留著示範「逾期」。
+- 範例模式（2026-11-13 起頁面上方 `exStrip()` 橫條常駐三家範例按鈕，主畫面與開店設定頁都有；範例中變深色並顯示「離開範例」，取代舊的 demo-bar；⚙ 看範例仍保留）：`S` 換成記憶體資料、`save()` 不寫入；開幕日＝今天＋40 天，最晚到期的一項必辦留著示範「逾期」。
 - 分享連結 `#s=`（base64url 的 ctx，不帶勾選／備註／預算）；已有設定時跳確認；有 `hashchange` 監聽。
 - **下載 PDF**（2026-11-13 使用者要求，要有浮水印）：`downloadPdf()` 點擊時才從 cdnjs 載入 html2pdf.js 0.10.1，`reportEl()` 另組一份 A4 報告 DOM（進度、各項說明、備註、預算），`pagebreak.avoid` 讓任務卡不跨頁；產生後逐頁 `addImage` 浮水印（`watermark.js` 的 `SOC_WATERMARK`＝馬克老師去背圖，先用 canvas 畫成 11% 透明 PNG，不依賴 jsPDF 透明度 API）＋頁尾網址與頁碼（jsPDF 內建字型不支援中文，頁尾只能用英數）。依報告高度調 html2canvas scale（上限 2，畫布高不超過 30000px）。`#pdfReport` 要 `box-sizing:border-box;width:100%`，否則右邊框被裁。驗證：Playwright 改寫 `html2pdf.Worker.prototype.save` 取 datauri，再用 PyMuPDF 逐頁轉圖看（範例早午餐 6 頁、約 2.6MB、約 6 秒）。離線時 cdnjs 載不到會提示改用列印。
 - 列印也有同一張浮水印（`#pdfWatermark`，`@media print` 固定置中，每頁重複）。
