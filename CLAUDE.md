@@ -4,7 +4,7 @@
 
 - 純靜態：`index.html`（CSS）＋`data.js`（任務資料＋規則引擎，node 也能 require）＋`app.js`（畫面）＋`manual.html`＋PWA。
 - 本機預覽 port **8874**（`.claude/launch.json` 的 `shop-opening-checklist`）。visitor-badge `m255525.shopopeningchecklist`。
-- 部署：`.github/workflows/pages.yml`（push master 自動部署 GitHub Pages）。建 public repo 由使用者自己跑 `gh repo create`。
+- 部署：`.github/workflows/pages.yml`（push master 自動部署 GitHub Pages）：<https://m255525.github.io/shop-opening-checklist/>（2026-11-13 上線；repo 由使用者自己 `gh repo create`）。
 
 ## 規則（2026-11 查證，改規定要同步三處：`data.js`、`tools/manual_body.html` 的數字表、`app.js` 的 `WARN_HTML`）
 - 營業稅起徵點（財政部，2025-01-01 起）：銷售貨物業 10 萬／月（food／retail／online／stall），勞務業 5 萬（beauty／service）。`threshold()`。
