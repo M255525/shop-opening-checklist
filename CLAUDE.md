@@ -40,3 +40,6 @@
 
 ## 未驗證
 手機真機的 .ics 匯入、iPhone 主畫面資料保留只在桌面 Chrome 模擬過。
+
+## MCP 同步
+`data.js` 也被 `小工具/rules-engine-mcp/` 複製去當 MCP 工具引擎。改了 `data.js` 之後，到該資料夾跑 `node tools/sync_engines.mjs --write` 再 `npm test`。
