@@ -179,7 +179,7 @@ function exStrip(){
     var m = /^(.*?)（(.*)）$/.exec(e.label) || [0, e.label, ''];
     return '<button class="exbtn" data-demo="' + e.key + '" aria-pressed="' + (demo && V.demoKey === e.key) + '"><span class="exic">' + D.TYPES[e.ctx.type].ic + '</span><span><b>' + esc(m[1]) + '</b><small>' + esc(m[2]) + '</small></span></button>';
   }).join('');
-  return '<div class="exbar noprint' + (demo ? ' on' : '') + '"><div class="exlab">' + (demo ? '👀 正在看範例店<small>資料是虛構的，勾選不會存下來</small>' : (S.ctx ? '👀 看看範例店' : '👀 還沒想好？先看範例店') + '<small>三家虛構的店，點了就能看完整清單</small>') + '</div>' +
+  return '<div class="exbar noprint' + (demo ? ' on' : '') + '"><div class="exlab">' + (demo ? '👀 正在看範例店<small>資料是虛構的，勾選不會存下來；開幕日以今天自動推算，從頭開始籌備</small>' : (S.ctx ? '👀 看看範例店' : '👀 還沒想好？先看範例店') + '<small>三家虛構的店，點了就能看完整清單</small>') + '</div>' +
     '<div class="exbtns">' + btns + '</div>' + (demo ? '<button class="exleave" data-act="leaveDemo">離開範例，回到' + (saved && saved.ctx ? '我的清單' : '開店設定') + '</button>' : '') + '</div>';
 }
 function seg(name, cur, opts){ return '<div class="seg" role="group">' + opts.map(function(o){ return '<button data-' + name + '="' + o[0] + '" aria-pressed="' + (cur === o[0]) + '">' + o[1] + '</button>'; }).join('') + '</div>'; }
@@ -512,10 +512,10 @@ function downloadPdf(){
 function enterDemo(key){
   var ex = D.EXAMPLES.filter(function(e){ return e.key === key; })[0]; if(!ex) return;
   if(!demo) saved = S;
-  var ctx = Object.assign({}, ex.ctx, {open:D.fmt(D.addDays(new Date(), 40))});
-  var st = cleanState({ctx:ctx}), ts = D.buildTasks(st.ctx), td = today(), skip = null;
-  ts.forEach(function(t){ if(t.end < td && t.tag === 'must' && (!skip || t.end > skip.end)) skip = t; }); // 留最晚到期的一項當「逾期」示範
-  ts.forEach(function(t){ if(t.end < td && t !== skip) st.done[t.id] = D.fmt(D.addDays(D.parseDate(t.end), -3)); });
+  // 開幕日＝今天＋（最早任務的提前天數＋10），每一項都還沒到期：範例一打開就是「剛開始籌備」，不預先勾完成、不留逾期
+  var lead = 10 - Math.min.apply(null, D.TASKS.map(function(t){ return t.o[0]; }));
+  var ctx = Object.assign({}, ex.ctx, {open:D.fmt(D.addDays(new Date(), lead))});
+  var st = cleanState({ctx:ctx}), ts = D.buildTasks(st.ctx);
   st.notes[ts[0].id] = '這是範例備註：記帳士王小姐（虛構）說開幕前一個月再對一次預算。';
   st.budget = cleanBudget({items:{deposit:120000, reno:450000, equip:380000, stock:80000, fees:30000, promo:40000}, monthly:150000, months:6, own:900000, loan:600000});
   S = st; demo = true; V.demoKey = key; V.editing = false; V.draft = null; closeModal(); render(); window.scrollTo(0, 0); toast('範例：' + ex.label);
