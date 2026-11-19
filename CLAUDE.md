@@ -36,7 +36,7 @@
 - 驗證方式：Playwright 改寫 `window.fetch` 模擬 Gemini 回應，測請求格式（金鑰在 header、JSON 模式、照片有 inline_data）與每張卡的解析呈現；真實金鑰未實測。
 
 ## 標準配備
-跑馬燈（工作區公告 GAS，滑鼠移入暫停，不可關）、⚙ 常用設定（收合式＋關於本工具）、首訪警語＋頁面入口、`manual.html#creator` 完整版（`tools/build_manual.py` 組，改手冊改 `tools/manual_body.html` 再重跑）、PWA（`tools/make_icons.py` 產圖示；上線改版升 `service-worker.js` 的 `CACHE_NAME`）、訪客計數器。
+跑馬燈（工作區公告 GAS，滑鼠移入暫停，不可關）、⚙ 常用設定（收合式＋關於本工具）、首訪警語＋頁面入口、`manual.html#creator` 完整版（`tools/build_manual.py` 組，改手冊改 `tools/manual_body.html` 再重跑）、PWA（`tools/make_icons.py` 產圖示；上線改版升 `service-worker.js` 的 `CACHE_NAME`，**並同步改 `index.html` 四個 `<script src="…?v=日期">` 版本號**——GitHub Pages 讓瀏覽器快取 JS 10 分鐘，不改版本號使用者會看到舊版）、訪客計數器。
 
 ## 未驗證
 手機真機的 .ics 匯入、iPhone 主畫面資料保留只在桌面 Chrome 模擬過。
